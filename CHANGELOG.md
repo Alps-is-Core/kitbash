@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0 (2026-10-08)
+
+- Fixed: double-clicking text didn't start editing (pointer capture retargeted the event), and typing went to the editor instead of the canvas
+- Canva-style selection: click selects the whole component, double-click goes straight to the element under the cursor, text edits immediately
+- Text with icons (buttons, links with arrows) is now editable; icons are protected while typing
+- Ungroup turns any component into free, absolutely positioned pieces that keep their exact look, with the container's styling kept as a background layer
+- Children of frames are selectable with a single click
+- New kits: daisyUI (17) and Tailblocks (12); new "Agency site" template. 187 components in total
+
 ## 1.0.0 (2026-10-08)
 
 First public release.

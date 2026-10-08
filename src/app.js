@@ -306,7 +306,7 @@ function iconOf(el) {
   if (t === 'button') return IC.btn;
   if (/^(input|textarea|select)$/.test(t)) return IC.input;
   if (/^(ul|ol)$/.test(t)) return IC.list;
-  if (el.dataset.kb === 'Group') return IC.group;
+  if (el.dataset.kb === 'Group' || LIB.items.some((i) => i.name === el.dataset.kb)) return IC.group;
   const cs = win.getComputedStyle(el);
   if (cs.display.includes('flex')) return cs.flexDirection.startsWith('column') ? IC.arrowDown : IC.arrowRight;
   return IC.box;
@@ -327,13 +327,16 @@ function pickSmart(t, deep) {
   if (!chain.length) return null;
   if (deep) return chain[chain.length - 1];
   const ctx = new Set([root]); const p = primary();
-  if (p && root.contains(p)) { ctx.add(p); for (let n = p.parentElement; n && n !== root; n = n.parentElement) ctx.add(n); }
+  if (p && root.contains(p)) for (let n = p.parentElement; n && n !== root; n = n.parentElement) ctx.add(n);
+  // frames are transparent to clicks (like Figma/Canva): their direct children are selectable straight away
   let pick = chain[0];
-  for (const n of chain) if (ctx.has(n.parentElement)) pick = n;
+  for (const n of chain) if (ctx.has(n.parentElement) || n.parentElement.hasAttribute('data-free')) pick = n;
   return pick;
 }
-const isTextual = (el) => el && !/^(img|input|textarea|select|svg|hr|br|video|iframe)$/.test(el.localName) && el.textContent.trim() &&
-  [...el.children].every((c) => /^(a|b|strong|em|i|span|small|code|kbd|br|u|s|mark|sup|sub)$/.test(c.localName));
+const NOEDIT = /^(img|input|textarea|select|svg|hr|br|video|iframe|canvas)$/;
+const ownText = (el) => !!el && !NOEDIT.test(el.localName) && [...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim());
+const isTextual = (el) => !!el && !NOEDIT.test(el.localName) && !!el.textContent.trim() &&
+  (ownText(el) || [...el.children].every((c) => /^(a|b|strong|em|i|span|small|code|kbd|br|u|s|mark|sup|sub)$/.test(c.localName)));
 
 /* ── overlays ── */
 function place() {
@@ -763,19 +766,17 @@ function insertNodes(nodes, scroll) {
 function onDblClick(e) {
   if (preview || isOv(e.target)) return;
   e.preventDefault();
-  const deep = pickSmart(e.target, true); if (!deep) return;
-  const p = primary();
-  if (p && p !== deep && p.contains(deep)) {
-    const chain = chainOf(deep); const next = chain[chain.indexOf(p) + 1];
-    if (next === deep && isTextual(deep)) startEdit(deep); else select([next]);
-  } else if (isTextual(deep)) startEdit(deep);
-  else select([deep]);
+  // pointer capture retargets dblclick to <html>, so resolve the element under the cursor ourselves
+  const deep = pickSmart(doc.elementFromPoint(e.clientX, e.clientY), true); if (!deep) return;
+  if (isTextual(deep)) startEdit(deep); else select([deep]);
 }
 function startEdit(el) {
   if (!el || !isTextual(el)) { if (el) select([el]); return; }
   if (sel[0] !== el || sel.length !== 1) select([el]);
   editing = el;
-  el.contentEditable = 'true'; el.spellcheck = false; el.focus();
+  [...el.children].forEach((c) => { if (NOEDIT.test(c.localName) || !c.textContent.trim()) { c.setAttribute('contenteditable', 'false'); c.setAttribute('data-kb-prot', ''); } });
+  el.contentEditable = 'true'; el.spellcheck = false;
+  frame.focus(); win.focus(); el.focus();  // pointerdown is preventDefault'ed, so the iframe never took focus on its own
   const r = doc.createRange(); r.selectNodeContents(el); const s = win.getSelection(); s.removeAllRanges(); s.addRange(r);
   place();
   el.addEventListener('blur', endEdit, { once: true });
@@ -784,6 +785,7 @@ function endEdit() {
   if (!editing) return;
   const el = editing; editing = null;
   el.removeAttribute('contenteditable'); el.removeAttribute('spellcheck');
+  el.querySelectorAll('[data-kb-prot]').forEach((c) => { c.removeAttribute('contenteditable'); c.removeAttribute('data-kb-prot'); });
   commit(); place(); renderInspector();
 }
 
@@ -794,6 +796,59 @@ function bump(n, d = 16) {
   const l = [...n.classList].find((c) => /^left-\[-?\d+(\.\d+)?px\]$/.test(c)), t = [...n.classList].find((c) => /^top-\[-?\d+(\.\d+)?px\]$/.test(c));
   if (l) { n.classList.replace(l, `left-[${parseFloat(l.slice(6)) + d}px]`); }
   if (t) { n.classList.replace(t, `top-[${parseFloat(t.slice(5)) + d}px]`); }
+}
+/* Canva-style ungroup: every child keeps its exact look and position but becomes a free layer.
+   In a flow layout the component is swapped for a same-sized freeform frame; a styled container
+   (background, border, shadow) is kept behind the pieces as its own "background" layer. */
+const BAKE = [
+  ['color', (v) => `text-[${v.replace(/\s+/g, '')}]`],
+  ['fontSize', (v) => `text-[${v}]`],
+  ['fontWeight', (v) => `font-[${v}]`],
+  ['lineHeight', (v) => (v === 'normal' ? '' : `leading-[${v}]`)],
+  ['letterSpacing', (v) => (v === 'normal' ? '' : `tracking-[${v}]`)],
+  ['textAlign', (v) => ({ start: 'text-left', left: 'text-left', center: 'text-center', right: 'text-right', end: 'text-right', justify: 'text-justify' }[v] || '')],
+  ['textTransform', (v) => ({ uppercase: 'uppercase', lowercase: 'lowercase', capitalize: 'capitalize' }[v] || '')],
+  ['fontFamily', (v) => (/mono/i.test(v) ? 'font-mono' : /serif/i.test(v) && !/sans-serif/i.test(v.split(',')[0]) ? 'font-serif' : '')],
+];
+const hasLook = (cs) => (cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && cs.backgroundColor !== 'transparent') || cs.backgroundImage !== 'none' ||
+  ['Top', 'Right', 'Bottom', 'Left'].some((s) => parseFloat(cs['border' + s + 'Width']) > 0) || cs.boxShadow !== 'none';
+function ungroupOne(g) {
+  const kids = [...g.children].filter((k) => !isOv(k));
+  const gcs = win.getComputedStyle(g), gr = g.getBoundingClientRect();
+  const snaps = kids.map((k) => { const cs = win.getComputedStyle(k); return { k, r: k.getBoundingClientRect(), text: ownText(k) || isTextual(k), before: BAKE.map(([p]) => cs[p]) }; });
+  const par = g.parentElement, name = nameOf(g);
+  let host;
+  if (isAbs(g) || par.hasAttribute('data-free')) host = par;
+  else {
+    host = doc.createElement('div');
+    host.dataset.kb = name; host.setAttribute('data-free', ''); host.setAttribute('data-drop', '');
+    const pr = par.getBoundingClientRect(), padX = parseFloat(win.getComputedStyle(par).paddingLeft) + parseFloat(win.getComputedStyle(par).paddingRight);
+    const full = Math.abs(gr.width - (pr.width - padX)) < 2;
+    host.className = `relative ${full ? 'w-full' : `w-[${Math.round(gr.width)}px]`} h-[${Math.round(gr.height)}px]`;
+    [...g.classList].filter((c) => G.margin.test(c) || /^(shrink-0|self-\w+)$/.test(c)).forEach((c) => host.classList.add(c));
+    g.replaceWith(host);
+  }
+  const hr = host.getBoundingClientRect(); const base = { x: hr.left + host.clientLeft - host.scrollLeft, y: hr.top + host.clientTop - host.scrollTop };
+  const out = [];
+  if (hasLook(gcs)) {
+    const bg = doc.createElement('div'); bg.className = g.getAttribute('class') || ''; bg.dataset.kb = name + ' background';
+    ['width', 'height', 'maxw', 'size', 'margin', 'pos', 'inset', 'left', 'top', 'display', 'dir', 'gap', 'items', 'justify', 'wrap', 'cols', 'p', 'px', 'py'].forEach((k) => setCls(bg, k, ''));
+    bg.classList.add(`w-[${Math.round(gr.width)}px]`, `h-[${Math.round(gr.height)}px]`);
+    if (host !== par) host.appendChild(bg); else g.before(bg);
+    makeAbs(bg, host, gr.left - base.x, gr.top - base.y); out.push(bg);
+  }
+  if (host === par) g.remove();
+  snaps.forEach(({ k, r, text, before }) => {
+    host.appendChild(k);
+    setCls(k, 'margin', ''); setCls(k, 'maxw', ''); setCls(k, 'size', '');
+    const cs = win.getComputedStyle(k);
+    BAKE.forEach(([p, fn], i) => { if (cs[p] !== before[i]) { const c = fn(before[i]); if (c) k.classList.add(c); } });
+    setCls(k, 'width', `w-[${Math.round(r.width)}px]`);
+    if (!text) setCls(k, 'height', `h-[${Math.round(r.height)}px]`);
+    makeAbs(k, host, r.left - base.x, r.top - base.y);
+    out.push(k);
+  });
+  return out;
 }
 const CMD = {
   undo, redo,
@@ -826,10 +881,11 @@ const CMD = {
     ensurePositioned(par); commit(); select([g]);
   },
   ungroup() {
-    const g = primary(); if (!g || !g.children.length) return;
-    const kids = [...g.children]; const gx = isAbs(g) ? g.offsetLeft : null, gy = isAbs(g) ? g.offsetTop : null;
-    kids.forEach((k) => { const kx = k.offsetLeft, ky = k.offsetTop; g.before(k); if (gx !== null && isAbs(k)) setPos(k, gx + kx, gy + ky); });
-    g.remove(); commit(); select(kids);
+    const groups = sel.filter((g) => [...g.children].some((k) => !isOv(k)));
+    if (!groups.length) return toast('Select a component or group to ungroup.');
+    const out = groups.flatMap(ungroupOne);
+    commit(); select(out);
+    toast(out.length === 1 ? 'Ungrouped' : `Ungrouped into ${out.length} layers. Drag, resize or double-click to edit each one.`);
   },
   forward() { docOrder(sel).reverse().forEach((n) => { const s = n.nextElementSibling; if (s && !isOv(s)) s.after(n); }); commit(); },
   backward() { docOrder(sel).forEach((n) => { const s = n.previousElementSibling; if (s) s.before(n); }); commit(); },
@@ -1073,7 +1129,7 @@ $('#previewBtn').onclick = togglePreview;
 /* ════════════════════════ history (per page) ════════════════════════ */
 const hists = {};
 const H = () => (hists[project.current] = hists[project.current] || { stack: [], i: -1 });
-function snap() { return root.innerHTML.replace(/ contenteditable="true"| spellcheck="false"/g, ''); }
+function snap() { return root.innerHTML.replace(/ contenteditable="(true|false)"| spellcheck="false"| data-kb-prot=""/g, ''); }
 function resetHistory() { const h = H(); h.stack = [snap()]; h.i = 0; updateUndo(); }
 function commit() {
   const s = snap(), h = H(); curPage().html = s; saveProject();
@@ -1294,7 +1350,8 @@ function renderInspector() {
       <li><span class="kbd">Drag</span> components in from the Insert tab</li>
       <li><span class="kbd">F</span> <span class="kbd">R</span> <span class="kbd">O</span> <span class="kbd">T</span> draw a frame, rectangle, ellipse or text</li>
       <li>Inside a <b>Frame</b>, drag layers anywhere and pull the handles to resize</li>
-      <li><span class="kbd">Double-click</span> to drill in or edit text, <span class="kbd">${modKey}click</span> to select the deepest layer</li>
+      <li>Click selects a whole component. <span class="kbd">Double-click</span> jumps to the exact element; on text it starts typing</li>
+      <li><span class="kbd">⇧${modKey}G</span> ungroups a component into free pieces you can move and resize like Canva</li>
       <li><span class="kbd">Space</span> + drag to pan, <span class="kbd">${modKey}scroll</span> to zoom</li>
       <li><span class="kbd">⌥</span> + hover to measure distances</li>
       <li>Paste HTML, text or images straight onto the canvas</li>
@@ -1611,8 +1668,8 @@ $('#dlBtn').onclick = () => { const ext = { html: 'html', react: 'jsx', vue: 'vu
 const M = modKey;
 const KEYS = [
   ['Tools'], ['Move', 'V'], ['Hand / pan', 'H', 'Space'], ['Frame', 'F'], ['Rectangle', 'R'], ['Ellipse', 'O'], ['Text', 'T'], ['Place image', '⇧' + M + 'K'],
-  ['Selection'], ['Select layer', 'Click'], ['Add to selection', '⇧Click'], ['Select deepest layer', M + 'Click'], ['Drill in / edit text', 'Double-click', '↵'], ['Select parent', '⇧↵'], ['Select all siblings', M + 'A'], ['Marquee select', 'Drag on empty space'], ['Deselect / exit tool', 'Esc'],
-  ['Edit'], ['Copy / cut / paste', M + 'C', M + 'X', M + 'V'], ['Duplicate', M + 'D'], ['Delete', '⌫'], ['Undo / redo', M + 'Z', '⇧' + M + 'Z'], ['Group / ungroup', M + 'G', '⇧' + M + 'G'], ['Frame selection', '⌥' + M + 'G'], ['Create component', '⌥' + M + 'K'], ['Add auto layout', '⇧A'], ['Hide / lock', '⇧' + M + 'H', '⇧' + M + 'L'],
+  ['Selection'], ['Select layer', 'Click'], ['Add to selection', '⇧Click'], ['Select deepest layer', M + 'Click'], ['Select inside a component / edit text', 'Double-click', '↵'], ['Select parent', '⇧↵'], ['Select all siblings', M + 'A'], ['Marquee select', 'Drag on empty space'], ['Deselect / exit tool', 'Esc'],
+  ['Edit'], ['Copy / cut / paste', M + 'C', M + 'X', M + 'V'], ['Duplicate', M + 'D'], ['Delete', '⌫'], ['Undo / redo', M + 'Z', '⇧' + M + 'Z'], ['Group / ungroup into free pieces', M + 'G', '⇧' + M + 'G'], ['Frame selection', '⌥' + M + 'G'], ['Create component', '⌥' + M + 'K'], ['Add auto layout', '⇧A'], ['Hide / lock', '⇧' + M + 'H', '⇧' + M + 'L'],
   ['Arrange'], ['Nudge free layer', '←↑→↓', '⇧ ×10'], ['Reorder in flow', '↑', '↓'], ['Bring forward / send backward', M + ']', M + '['], ['Bring to front / send to back', '⌥' + M + ']', '⌥' + M + '['], ['Resize from center', '⌥ drag handle'], ['Keep proportions', '⇧ drag corner'], ['Move without snapping', M + ' drag'], ['Lock axis while moving', '⇧ drag'], ['Measure distances', '⌥ hover'],
   ['View'], ['Zoom in / out', M + '+', M + '−'], ['Zoom with wheel', M + 'scroll'], ['Zoom to fit / 100%', '⇧1', '⇧0'], ['Preview', '⌥' + M + 'P'], ['Save / open project', M + 'S', M + 'O'], ['This list', '?'],
 ];

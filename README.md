@@ -3,7 +3,7 @@
 # kitbash
 
 **An open-source, Figma-style canvas for building real UI with Tailwind components.**
-Drag in 150+ components, move and resize anything, then export clean HTML, React or Vue.
+Drag in 180+ components, move and resize anything, then export clean HTML, React or Vue.
 
 [**Open the editor →**](https://alps-is-core.github.io/kitbash/)
 
@@ -23,7 +23,9 @@ Design tools draw pictures of UI. Page builders lock you into their runtime. Kit
 ## Features
 
 **Canvas**
-- Drag-and-drop from a library of **158 components** across 7 kits
+- Drag-and-drop from a library of **187 components** across 9 kits
+- **Canva-style editing**: click selects a whole component, double-click jumps straight to the element under the cursor and starts typing if it's text
+- **Ungroup any component** (⇧⌘G) into free pieces that keep their exact look; each piece can then be dragged, resized or edited on its own
 - **Frames** with freeform positioning: drag layers anywhere, pull 8 handles to resize, rotate, and snap to **smart guides**
 - Flow layouts too: drag to reorder inside stacks, rows and grids with a live insertion line
 - Drawing tools: **Frame (F)**, **Rectangle (R)**, **Ellipse (O)**, **Text (T)**, place image
@@ -31,7 +33,7 @@ Design tools draw pictures of UI. Page builders lock you into their runtime. Kit
 - Responsive widths: fit, 1440, 1280, 1024, 820, 390
 - **⌥-hover measuring** of distances between layers
 - Marquee and ⇧-click multi-select; align and distribute
-- Double-click to drill in or edit text in place; ⌘-click selects the deepest layer
+- Layers inside a frame are selectable with one click; ⌘-click selects the deepest layer
 - Right-click context menu with everything below
 
 **Layers & structure**
@@ -65,6 +67,8 @@ Design tools draw pictures of UI. Page builders lock you into their runtime. Kit
 | Preline | 16 | App shells, tables, kanban, invoice, settings |
 | Meraki UI | 9 | Auth, 404, gallery, comments, coming soon |
 | Effects | 16 | Magic UI / Aceternity-style motion and backgrounds |
+| daisyUI | 17 | Colorful buttons, stats, chat, countdown, browser / code / phone mockups |
+| Tailblocks | 12 | Landing sections: hero, features, pricing, steps, contact, footer |
 
 > Every component is **original plain-Tailwind markup written in the visual style** of the named MIT-licensed kit. Nothing is copied verbatim, nothing needs the kit installed, and you can paste official markup in with **Import HTML** whenever you want the real thing. Icons are [Lucide](https://lucide.dev) paths (ISC).
 
@@ -117,7 +121,7 @@ Press **?** in the editor for the full list. The essentials:
 | | |
 |---|---|
 | Tools | `V` move · `H` hand · `F` frame · `R` rectangle · `O` ellipse · `T` text |
-| Select | click · `⇧`click · `⌘`click deepest · `↵` / `⇧↵` child / parent · `⌘A` |
+| Select | click · double-click into a component / edit text · `⇧`click · `⌘`click deepest · `↵` / `⇧↵` child / parent · `⌘A` |
 | Edit | `⌘C` `⌘X` `⌘V` · `⌘D` · `⌫` · `⌘Z` / `⇧⌘Z` · `⌘G` / `⇧⌘G` · `⌥⌘K` component · `⇧A` auto layout |
 | Arrange | arrows nudge (`⇧` ×10) · `⌘]` / `⌘[` · `⌥` + hover to measure |
 | View | `⌘` + scroll / `⌘+` / `⌘−` zoom · `⇧1` fit · `⇧0` 100% · `⌥⌘P` preview |

@@ -1,7 +1,7 @@
 {
   "name": "kitbash",
-  "version": "1.0.0",
-  "description": "Open-source drag-and-drop UI builder with 150+ Tailwind components. Design visually, export HTML, React or Vue.",
+  "version": "1.1.0",
+  "description": "Open-source drag-and-drop UI builder with 180+ Tailwind components. Design visually, export HTML, React or Vue.",
   "private": true,
   "type": "module",
   "license": "MIT",
