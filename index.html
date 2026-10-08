@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kitbash</title>
+<meta name="description" content="Open-source drag-and-drop UI builder with 150+ Tailwind components. Design visually, export HTML, React or Vue.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%233546d8'/%3E%3Crect x='7' y='7' width='8' height='8' rx='2' fill='white'/%3E%3Crect x='17' y='7' width='8' height='8' rx='4' fill='white' opacity='.7'/%3E%3Crect x='7' y='17' width='18' height='8' rx='2' fill='white' opacity='.85'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="src/styles.css">
+</head>
+<body>
+<div class="app" id="app">
+  <header class="top">
+    <button class="brand" id="mainMenuBtn" aria-haspopup="menu" title="Main menu"><b>kit<i>bash</i></b><span data-icon="chevDown"></span></button>
+    <div class="tools">
+      <button class="btn tool on" data-tool="move" data-icon="cursor" title="Move (V)"></button>
+      <button class="btn tool" data-tool="hand" data-icon="hand" title="Hand (H, or hold Space)"></button>
+      <span class="sep"></span>
+      <button class="btn tool" data-tool="frame" data-icon="frame" title="Frame (F)"></button>
+      <button class="btn tool" data-tool="rect" data-icon="square" title="Rectangle (R)"></button>
+      <button class="btn tool" data-tool="ellipse" data-icon="circle" title="Ellipse (O)"></button>
+      <button class="btn tool" data-tool="text" data-icon="type" title="Text (T)"></button>
+      <button class="btn tool" id="imgTool" data-icon="image" title="Place image (⇧⌘K)"></button>
+      <input type="file" id="imgFile" accept="image/*" hidden>
+      <span class="sep"></span>
+      <button class="btn tool" id="undoBtn" data-icon="undo" title="Undo (⌘Z)"></button>
+      <button class="btn tool" id="redoBtn" data-icon="redo" title="Redo (⇧⌘Z)"></button>
+      <span class="sep"></span>
+      <button class="btn" id="previewBtn" data-icon="eye" title="Preview (⌥⌘P)"><span class="lbl">Preview</span></button>
+      <button class="btn" id="tplBtn" data-icon="layout" title="Start a new page from a template"><span class="lbl">Templates</span></button>
+      <button class="btn tool hide-sm" id="themeBtn" data-icon="contrast" title="Editor theme"></button>
+      <button class="btn tool hide-sm" id="keysBtn" data-icon="keyboard" title="Keyboard shortcuts (?)"></button>
+    </div>
+    <button class="btn primary" id="codeBtn" data-icon="code">Get code</button>
+  </header>
+
+  <aside class="panel left" id="leftPanel">
+    <div class="tabs"><button class="tab on" data-ltab="insert">Insert</button><button class="tab" data-ltab="layers">Layers</button></div>
+    <div id="insertPane" class="panel" style="flex:1;min-height:0">
+      <div class="panel-head">
+        <label class="search"><span data-icon="search"></span><input id="q" type="search" placeholder="Search 150+ components" autocomplete="off"></label>
+        <div class="chips" id="kitChips"></div>
+      </div>
+      <div class="scroll"><div class="pal-list" id="palList"></div></div>
+      <div class="pal-foot" id="kitNote"></div>
+    </div>
+    <div id="layersPane" class="panel" style="flex:1;min-height:0" hidden>
+      <div class="sec-h">Pages<button class="btn" id="addPage" data-icon="plus" title="Add page"></button></div>
+      <div class="pages" id="pageList"></div>
+      <div class="sec-h">Layers</div>
+      <div class="scroll"><div class="tree" id="tree"></div></div>
+    </div>
+  </aside>
+
+  <main class="stage">
+    <div class="stage-bar">
+      <span class="info" id="stageInfo"></span>
+      <div class="ctl">
+        <select id="vpSel" title="Canvas width">
+          <option value="0">Fit width</option>
+          <option value="1440">Desktop · 1440</option>
+          <option value="1280">Laptop · 1280</option>
+          <option value="1024">Tablet L · 1024</option>
+          <option value="820">Tablet · 820</option>
+          <option value="390">Phone · 390</option>
+        </select>
+        <div class="zoom"><button id="zoomOut" title="Zoom out (⌘−)">−</button><button class="pct" id="zoomPct" title="Zoom options">100%</button><button id="zoomIn" title="Zoom in (⌘+)">+</button></div>
+      </div>
+    </div>
+    <div class="stage-scroll" id="stageScroll">
+      <div class="board" id="board"><div class="frame-box" id="frameBox"><iframe id="canvas" title="Canvas"></iframe></div></div>
+    </div>
+  </main>
+
+  <aside class="panel right" id="rightPanel">
+    <div class="tabs"><button class="tab on">Design</button></div>
+    <div class="scroll"><div id="insBody"></div></div>
+  </aside>
+
+  <nav class="mtabs" id="mtabs">
+    <button data-m="left" data-icon="plus">Insert</button>
+    <button data-m="canvas" class="on" data-icon="frame">Canvas</button>
+    <button data-m="right" data-icon="sliders">Design</button>
+  </nav>
+</div>
+
+<div class="pv" id="pv" hidden><div class="pv-head"><b id="pvName"></b><span id="pvKit"></span></div><div class="pv-body" id="pvBody"><iframe id="pvFrame" title="Component preview" tabindex="-1"></iframe></div></div>
+<div class="menu" id="menu" role="menu" hidden></div>
+
+<div class="modal-bg" id="codeModal" hidden>
+  <div class="modal" role="dialog" aria-label="Export code">
+    <div class="modal-head">
+      <h2>Export</h2>
+      <div class="seg" id="codeTabs">
+        <button class="btn on" data-f="html">HTML</button>
+        <button class="btn" data-f="react">React</button>
+        <button class="btn" data-f="vue">Vue</button>
+        <button class="btn" data-f="page">Full page</button>
+      </div>
+      <label class="check"><input type="checkbox" id="selOnly">Selection only</label>
+      <span class="grow"></span>
+      <button class="btn" id="dlBtn" data-icon="download">Download</button>
+      <button class="btn primary" id="copyBtn">Copy</button>
+      <button class="btn tool" data-close="codeModal" data-icon="x" aria-label="Close"></button>
+    </div>
+    <pre class="code" id="codeOut"></pre>
+    <div class="modal-foot"><span id="codeStats"></span><span>Tailwind CSS v3 classes · paste into any Tailwind project</span></div>
+  </div>
+</div>
+
+<div class="modal-bg" id="importModal" hidden>
+  <div class="modal" role="dialog" aria-label="Import HTML">
+    <div class="modal-head"><h2>Import HTML</h2><span class="hint">Paste Tailwind markup from any kit. It lands after the selection, or at the end of the page. You can also paste HTML straight onto the canvas with ⌘V.</span><span class="grow"></span><button class="btn primary" id="doImport">Add to canvas</button><button class="btn tool" data-close="importModal" data-icon="x" aria-label="Close"></button></div>
+    <textarea class="ta import-ta" id="importTa" spellcheck="false" placeholder="<section class=&quot;py-16&quot;>…</section>"></textarea>
+  </div>
+</div>
+
+<div class="modal-bg" id="keysModal" hidden>
+  <div class="modal sm" role="dialog" aria-label="Keyboard shortcuts">
+    <div class="modal-head"><h2>Keyboard shortcuts</h2><span class="grow"></span><button class="btn tool" data-close="keysModal" data-icon="x" aria-label="Close"></button></div>
+    <div class="keys" id="keysList"></div>
+  </div>
+</div>
+
+<input type="file" id="openFile" accept=".json,application/json" hidden>
+<div class="toast" id="toast" role="status"></div>
+
+<script src="src/components.js"></script>
+<script src="src/app.js"></script>
+</body>
+</html>

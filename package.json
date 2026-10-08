@@ -1,0 +1,17 @@
+{
+  "name": "kitbash",
+  "version": "1.0.0",
+  "description": "Open-source drag-and-drop UI builder with 150+ Tailwind components. Design visually, export HTML, React or Vue.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "homepage": "https://alps-is-core.github.io/kitbash/",
+  "repository": { "type": "git", "url": "https://github.com/Alps-is-Core/kitbash.git" },
+  "bugs": { "url": "https://github.com/Alps-is-Core/kitbash/issues" },
+  "keywords": ["ui-builder", "page-builder", "drag-and-drop", "tailwindcss", "shadcn", "no-code", "design-tool", "figma"],
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "test": "node --test tests/library.test.mjs"
+  }
+}
